@@ -1,6 +1,5 @@
 // #####
-// ROS
-#include <ros/ros.h>
+
 
 // MoveIt
 #include <moveit/planning_scene/planning_scene.h>
