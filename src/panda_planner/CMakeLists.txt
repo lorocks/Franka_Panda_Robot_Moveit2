@@ -120,9 +120,17 @@ $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
 target_compile_features(single_action PUBLIC c_std_99 cxx_std_17)
 
+add_executable(ros1_action src/ros1_action.cpp)
+ament_target_dependencies(ros1_action ${THIS_PACKAGE_INCLUDE_DEPENDS})
+target_include_directories(ros1_action PUBLIC
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+target_compile_features(ros1_action PUBLIC c_std_99 cxx_std_17)
+
 install(TARGETS 
 minimal_panda_planner 
 single_action
+ros1_action
 DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY
