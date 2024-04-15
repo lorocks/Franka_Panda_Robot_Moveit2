@@ -22,6 +22,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   moveit_ros_planning_interface
   moveit_servo
   moveit_task_constructor_core
+  moveit_task_constructor_msgs
   moveit_visual_tools
   pluginlib
   rclcpp
