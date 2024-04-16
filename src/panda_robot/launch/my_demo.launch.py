@@ -11,7 +11,7 @@ def generate_launch_description():
     moveit_config = (
         MoveItConfigsBuilder("panda", package_name="panda_robot")
         .robot_description(file_path="config/panda.urdf.xacro")
-        .trajectory_execution(file_path="config/moveit_controllers.yaml")
+        .trajectory_execution(file_path="config/gripper_moveit_controllers.yaml")
         .to_moveit_configs()
     )
 
@@ -33,7 +33,7 @@ def generate_launch_description():
 
     # RViz
     rviz_config_file = (
-        get_package_share_directory("moveit2_tutorials") + "/launch/mtc.rviz"
+        get_package_share_directory("panda_robot") + "/config/mtc.rviz"
     )
     rviz_node = Node(
         package="rviz2",

@@ -1,6 +1,8 @@
 #include <geometry_msgs/msg/detail/pose_stamped__struct.hpp>
 #include <memory>
+#include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/task_constructor/stages/move_to.h>
+#include <moveit_msgs/msg/detail/attached_collision_object__struct.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
@@ -34,7 +36,8 @@ public:
 
 private:
   // Compose an MTC task from a series of stages.
-  mtc::Task createTask();
+  mtc::Task createTask1(mtc::Stage* attach_object_stage);
+  mtc::Task createTask2(mtc::Stage* attach_object_stage);
   mtc::Task task_;
   rclcpp::Node::SharedPtr node_;
 };
@@ -135,6 +138,9 @@ void MTCTaskNode::setupPlanningScene()
   pose.orientation.w = 1.0;
   object.pose = pose;
 
+  moveit_msgs::msg::AttachedCollisionObject aobject;
+  aobject.set__object(object);
+
   moveit::planning_interface::PlanningSceneInterface psi;
   psi.applyCollisionObject(object1);
   psi.applyCollisionObject(object2);
@@ -144,9 +150,15 @@ void MTCTaskNode::setupPlanningScene()
   psi.applyCollisionObject(object);
 }
 
+
 void MTCTaskNode::doTask()
 {
-  task_ = createTask();
+    // clang-format off
+  mtc::Stage* attach_object_stage =
+      nullptr;  // Forward attach_object_stage to place pose generator
+  // clang-format on
+
+  task_ = createTask1(attach_object_stage);
 
   try
   {
@@ -166,18 +178,45 @@ void MTCTaskNode::doTask()
   }
   task_.introspection().publishSolution(*task_.solutions().front());
 
-  auto result = task_.execute(*task_.solutions().front());
-  if (result.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS)
+  auto result1 = task_.execute(*task_.solutions().front());
+  if (result1.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS)
   {
-    RCLCPP_ERROR_STREAM(LOGGER, result.val);
     RCLCPP_ERROR_STREAM(LOGGER, "Task execution failed");
     return;
   }
 
+  task_ = createTask2(attach_object_stage);
+
+  try
+  {
+    task_.init();
+  }
+  catch (mtc::InitStageException& e)
+  {
+    RCLCPP_ERROR_STREAM(LOGGER, "Failed in init()");
+    RCLCPP_ERROR_STREAM(LOGGER, e);
+    return;
+  }
+
+  if (!task_.plan(5 /* max_solutions */))
+  {
+    RCLCPP_ERROR_STREAM(LOGGER, "Task planning failed");
+    return;
+  }
+  task_.introspection().publishSolution(*task_.solutions().front());
+
+  auto result2 = task_.execute(*task_.solutions().front());
+  if (result2.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS)
+  {
+    RCLCPP_ERROR_STREAM(LOGGER, "Task execution failed");
+    return;
+  }
+
+
   return;
 }
 
-mtc::Task MTCTaskNode::createTask()
+mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
 {
   mtc::Task task;
   task.stages()->setName("demo task");
@@ -266,10 +305,6 @@ mtc::Task MTCTaskNode::createTask()
   // task.add(std::move(stage_motion));
   //////////
 
-  // clang-format off
-  mtc::Stage* attach_object_stage =
-      nullptr;  // Forward attach_object_stage to place pose generator
-  // clang-format on
 
   // This is an example of SerialContainer usage. It's not strictly needed here.
   // In fact, `task` itself is a SerialContainer by default.
@@ -344,19 +379,59 @@ mtc::Task MTCTaskNode::createTask()
                                  ->getLinkModelNamesWithCollisionGeometry(),
                              true);
       // clang-format on
+      // grasp->insert(std::move(stage));
+    }
+
+
+    {
+      // clang-format off
+      auto stage =
+          std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object)");
+      stage->allowCollisions("object",
+                             task.getRobotModel()
+                                 ->getJointModelGroup("panda_arm_hand")
+                                 ->getLinkModelNamesWithCollisionGeometry(),
+                             true);
+      // clang-format on
       grasp->insert(std::move(stage));
+    }
+
+
+    {
+      // clang-format off
+      auto stage =
+          std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object)");
+      stage->allowCollisions("panda_finger_joint1",
+                             "object",
+                             true);
+      // clang-format on
+      // grasp->insert(std::move(stage));
+    }
+
+    {
+      // clang-format off
+      auto stage =
+          std::make_unique<mtc::stages::ModifyPlanningScene>("allow collision (hand,object)");
+      stage->allowCollisions(
+                             "object",
+                             true);
+      // clang-format on
+      // grasp->insert(std::move(stage));
     }
 
     {
       auto stage = std::make_unique<mtc::stages::MoveTo>("close hand", interpolation_planner);
       stage->setGroup(hand_group_name);
       stage->setGoal("close");
-      grasp->insert(std::move(stage));
+      // grasp->insert(std::move(stage));
     }
+
+    
 
     {
       auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("attach object");
       stage->attachObject("object", hand_frame);
+      
       attach_object_stage = stage.get();
       grasp->insert(std::move(stage));
     }
@@ -369,17 +444,27 @@ mtc::Task MTCTaskNode::createTask()
       stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
       stage->setMinMaxDistance(0.1, 0.3);
       stage->setIKFrame(hand_frame);
+      // stage->setIKFrame("hand");
       stage->properties().set("marker_ns", "lift_object");
 
       // Set upward direction
       geometry_msgs::msg::Vector3Stamped vec;
       vec.header.frame_id = "world";
-      vec.vector.x = 1.0;
+      // vec.vector.x = 1.0;
       vec.vector.z = 0.5;
       stage->setDirection(vec);
+      // stage->setGoal("ready");
       grasp->insert(std::move(stage));
     }
     task.add(std::move(grasp));
+  }
+
+  {
+    auto stage = std::make_unique<mtc::stages::MoveTo>("return home", interpolation_planner);
+    // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
+    stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
+    stage->setGoal("ready");
+    // task.add(std::move(stage));
   }
 
   {
@@ -391,7 +476,7 @@ mtc::Task MTCTaskNode::createTask()
     // clang-format on
     stage_move_to_place->setTimeout(5.0);
     stage_move_to_place->properties().configureInitFrom(mtc::Stage::PARENT);
-    task.add(std::move(stage_move_to_place));
+    // task.add(std::move(stage_move_to_place));
   }
 
   {
@@ -474,7 +559,7 @@ mtc::Task MTCTaskNode::createTask()
       stage->setDirection(vec);
       place->insert(std::move(stage));
     }
-    task.add(std::move(place));
+    // task.add(std::move(place));
   }
 
   {
@@ -482,10 +567,153 @@ mtc::Task MTCTaskNode::createTask()
     // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
     stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
     stage->setGoal("ready");
-    task.add(std::move(stage));
+    // task.add(std::move(stage));
   }
   return task;
 }
+
+
+
+mtc::Task MTCTaskNode::createTask2(mtc::Stage* attach_object_stage)
+{
+  mtc::Task task;
+  task.stages()->setName("demo task");
+  task.loadRobotModel(node_);
+
+  const auto& arm_group_name = "panda_arm";
+  const auto& hand_group_name = "hand";
+  const auto& hand_frame = "panda_hand";
+
+  // Set task properties
+  task.setProperty("group", arm_group_name);
+  task.setProperty("eef", hand_group_name);
+  task.setProperty("ik_frame", hand_frame);
+
+
+  auto sampling_planner = std::make_shared<mtc::solvers::PipelinePlanner>(node_);
+  auto interpolation_planner = std::make_shared<mtc::solvers::JointInterpolationPlanner>();
+
+  auto cartesian_planner = std::make_shared<mtc::solvers::CartesianPath>();
+  cartesian_planner->setMaxVelocityScalingFactor(1.0);
+  cartesian_planner->setMaxAccelerationScalingFactor(1.0);
+  cartesian_planner->setStepSize(.01);
+
+ 
+
+  // {
+  //   auto stage = std::make_unique<mtc::stages::MoveTo>("return home", interpolation_planner);
+  //   // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
+  //   stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
+  //   stage->setGoal("ready");
+  //   // task.add(std::move(stage));
+  // }
+
+  {
+    // clang-format off
+    auto stage_move_to_place = std::make_unique<mtc::stages::Connect>(
+        "move to place",
+        mtc::stages::Connect::GroupPlannerVector{ { arm_group_name, interpolation_planner },
+                                                  { hand_group_name, interpolation_planner } });
+    // clang-format on
+    stage_move_to_place->setTimeout(5.0);
+    stage_move_to_place->properties().configureInitFrom(mtc::Stage::PARENT);
+    // task.add(std::move(stage_move_to_place));
+  }
+
+  {
+    auto place = std::make_unique<mtc::SerialContainer>("place object");
+    task.properties().exposeTo(place->properties(), { "eef", "group", "ik_frame" });
+    // clang-format off
+    place->properties().configureInitFrom(mtc::Stage::PARENT,
+                                          { "eef", "group", "ik_frame" });
+    // clang-format on
+
+    /****************************************************
+  ---- *               Generate Place Pose                *
+     ***************************************************/
+    {
+      // Sample place pose
+      auto stage = std::make_unique<mtc::stages::GeneratePlacePose>("generate place pose");
+      stage->properties().configureInitFrom(mtc::Stage::PARENT);
+      stage->properties().set("marker_ns", "place_pose");
+      stage->setObject("object");
+
+      geometry_msgs::msg::PoseStamped target_pose_msg;
+      target_pose_msg.header.frame_id = "object";
+      // target_pose_msg.pose.position.
+      target_pose_msg.pose.position.y = 0.5;
+      target_pose_msg.pose.position.z = -0.3;
+      target_pose_msg.pose.orientation.w = 1.0;
+      stage->setPose(target_pose_msg);
+      stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
+
+      // Compute IK
+      // clang-format off
+      auto wrapper =
+          std::make_unique<mtc::stages::ComputeIK>("place pose IK", std::move(stage));
+      // clang-format on
+      wrapper->setMaxIKSolutions(2);
+      wrapper->setMinSolutionDistance(1.0);
+      wrapper->setIKFrame("object");
+      wrapper->properties().configureInitFrom(mtc::Stage::PARENT, { "eef", "group" });
+      wrapper->properties().configureInitFrom(mtc::Stage::INTERFACE, { "target_pose" });
+      place->insert(std::move(wrapper));
+    }
+
+    {
+      auto stage = std::make_unique<mtc::stages::MoveTo>("open hand", interpolation_planner);
+      stage->setGroup(hand_group_name);
+      stage->setGoal("open");
+      place->insert(std::move(stage));
+    }
+
+    {
+      // clang-format off
+      auto stage =
+          std::make_unique<mtc::stages::ModifyPlanningScene>("forbid collision (hand,object)");
+      stage->allowCollisions("object",
+                             task.getRobotModel()
+                                 ->getJointModelGroup(hand_group_name)
+                                 ->getLinkModelNamesWithCollisionGeometry(),
+                             false);
+      // clang-format on
+      place->insert(std::move(stage));
+    }
+
+    {
+      auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("detach object");
+      stage->detachObject("object", hand_frame);
+      place->insert(std::move(stage));
+    }
+
+    {
+      auto stage = std::make_unique<mtc::stages::MoveRelative>("retreat", cartesian_planner);
+      stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
+      stage->setMinMaxDistance(0.1, 0.3);
+      stage->setIKFrame(hand_frame);
+      stage->properties().set("marker_ns", "retreat");
+
+      // Set retreat direction
+      geometry_msgs::msg::Vector3Stamped vec;
+      vec.header.frame_id = "world";
+      vec.vector.x = -0.5;
+      stage->setDirection(vec);
+      place->insert(std::move(stage));
+    }
+    // task.add(std::move(place));
+  }
+
+  {
+    auto stage = std::make_unique<mtc::stages::MoveTo>("return home", interpolation_planner);
+    // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
+    stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
+    stage->setGoal("ready");
+    // task.add(std::move(stage));
+  }
+  return task;
+}
+
+
 
 int main(int argc, char** argv)
 {
@@ -507,6 +735,29 @@ int main(int argc, char** argv)
   mtc_task_node->doTask();
 
   spin_thread->join();
+
+  // rclcpp::init(argc, argv);
+  // auto const node = std::make_shared<rclcpp::Node>(
+  //   "hello_moveit",
+  //   rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
+  // );
+  // using moveit::planning_interface::MoveGroupInterface;
+  // auto move_arm = MoveGroupInterface(node, "panda_arm");
+  // auto move_gripper = MoveGroupInterface(node, "hand");
+  // auto const logger = rclcpp::get_logger("hello_moveit");
+
+  // move_arm.setNamedTarget("ready");
+  // auto const [success_move, plan_move] = [&move_arm]{
+  // moveit::planning_interface::MoveGroupInterface::Plan msg;
+  // auto const ok = static_cast<bool>(move_arm.plan(msg));
+  // return std::make_pair(ok, msg);
+  // }();
+  // if(success_move) {
+  //   move_arm.execute(plan_move);
+  // } else {
+  //   RCLCPP_ERROR(logger, "Planing failed Move!");
+  // }
+
   rclcpp::shutdown();
   return 0;
 }
