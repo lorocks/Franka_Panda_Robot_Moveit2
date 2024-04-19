@@ -20,7 +20,6 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   moveit_msgs
   moveit_ros_planning
   moveit_ros_planning_interface
-  moveit_servo
   moveit_task_constructor_core
   moveit_task_constructor_msgs
   moveit_visual_tools
@@ -121,17 +120,17 @@ $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
 target_compile_features(single_action PUBLIC c_std_99 cxx_std_17)
 
-add_executable(ros1_action src/ros1_action.cpp)
-ament_target_dependencies(ros1_action ${THIS_PACKAGE_INCLUDE_DEPENDS})
-target_include_directories(ros1_action PUBLIC
+add_executable(combined_task src/combined_task.cpp)
+ament_target_dependencies(combined_task ${THIS_PACKAGE_INCLUDE_DEPENDS})
+target_include_directories(combined_task PUBLIC
 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
-target_compile_features(ros1_action PUBLIC c_std_99 cxx_std_17)
+target_compile_features(combined_task PUBLIC c_std_99 cxx_std_17)
 
 install(TARGETS 
 minimal_panda_planner 
 single_action
-ros1_action
+combined_task
 DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY

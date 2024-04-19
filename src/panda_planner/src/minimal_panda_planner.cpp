@@ -24,6 +24,7 @@
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("mtc_tutorial");
 namespace mtc = moveit::task_constructor;
 
+// MTC Node for task creation and execution
 class MTCTaskNode
 {
 public:
@@ -61,6 +62,7 @@ rclcpp::node_interfaces::NodeBaseInterface::SharedPtr MTCTaskNode::getNodeBaseIn
   return node_2->get_node_base_interface();
 }
 
+// Add obstacles to RViz Scene
 void MTCTaskNode::setupPlanningScene()
 {
   moveit_msgs::msg::CollisionObject object1;
@@ -92,7 +94,7 @@ void MTCTaskNode::setupPlanningScene()
   object2.pose = pose2;
 
   moveit_msgs::msg::CollisionObject object3;
-  object3.id = "box";
+  object3.id = "box1";
   object3.header.frame_id = "world";
   object3.primitives.resize(1);
   object3.primitives[0].type = shape_msgs::msg::SolidPrimitive::BOX;
@@ -150,12 +152,87 @@ void MTCTaskNode::setupPlanningScene()
   moveit_msgs::msg::AttachedCollisionObject aobject;
   aobject.set__object(object);
 
+  moveit_msgs::msg::CollisionObject object6;
+  object6.id = "cyl5";
+  object6.header.frame_id = "world";
+  object6.primitives.resize(1);
+  object6.primitives[0].type = shape_msgs::msg::SolidPrimitive::CYLINDER;
+  object6.primitives[0].dimensions = { 0.15, 0.02 };
+
+  geometry_msgs::msg::Pose pose6;
+  pose6.position.x = -0.4;
+  pose6.position.y = 0.4;
+  pose6.position.z = object6.primitives[0].dimensions[0] / 2;
+  pose6.orientation.w = 1.0;
+  object6.pose = pose6;
+
+  moveit_msgs::msg::CollisionObject object7;
+  object7.id = "cyl6";
+  object7.header.frame_id = "world";
+  object7.primitives.resize(1);
+  object7.primitives[0].type = shape_msgs::msg::SolidPrimitive::CYLINDER;
+  object7.primitives[0].dimensions = { 0.15, 0.02 };
+
+  geometry_msgs::msg::Pose pose7;
+  pose7.position.x = -0.4;
+  pose7.position.y = 0.6;
+  pose7.position.z = object7.primitives[0].dimensions[0] / 2;
+  pose7.orientation.w = 1.0;
+  object7.pose = pose7;
+
+  moveit_msgs::msg::CollisionObject object8;
+  object8.id = "cyl7";
+  object8.header.frame_id = "world";
+  object8.primitives.resize(1);
+  object8.primitives[0].type = shape_msgs::msg::SolidPrimitive::CYLINDER;
+  object8.primitives[0].dimensions = { 0.15, 0.02 };
+
+  geometry_msgs::msg::Pose pose8;
+  pose8.position.x = -0.6;
+  pose8.position.y = 0.6;
+  pose8.position.z = object6.primitives[0].dimensions[0] / 2;
+  pose8.orientation.w = 1.0;
+  object8.pose = pose8;
+
+  moveit_msgs::msg::CollisionObject object9;
+  object9.id = "cyl8";
+  object9.header.frame_id = "world";
+  object9.primitives.resize(1);
+  object9.primitives[0].type = shape_msgs::msg::SolidPrimitive::CYLINDER;
+  object9.primitives[0].dimensions = { 0.15, 0.02 };
+
+  geometry_msgs::msg::Pose pose9;
+  pose9.position.x = -0.6;
+  pose9.position.y = 0.4;
+  pose9.position.z = object7.primitives[0].dimensions[0] / 2;
+  pose9.orientation.w = 1.0;
+  object9.pose = pose9;
+
+  moveit_msgs::msg::CollisionObject object0;
+  object0.id = "box2";
+  object0.header.frame_id = "world";
+  object0.primitives.resize(1);
+  object0.primitives[0].type = shape_msgs::msg::SolidPrimitive::BOX;
+  object0.primitives[0].dimensions = { 0.6, 0.45, 0.05 };
+
+  geometry_msgs::msg::Pose pose0;
+  pose0.position.x = -0.5;
+  pose0.position.y = 0.5;
+  pose0.position.z = object9.primitives[0].dimensions[0] + (object0.primitives[0].dimensions[2] / 2);
+  pose0.orientation.w = 1.0;
+  object0.pose = pose0;
+
   moveit::planning_interface::PlanningSceneInterface psi;
   psi.applyCollisionObject(object1);
   psi.applyCollisionObject(object2);
   psi.applyCollisionObject(object3);
   psi.applyCollisionObject(object4);
   psi.applyCollisionObject(object5);
+  psi.applyCollisionObject(object6);
+  psi.applyCollisionObject(object7);
+  psi.applyCollisionObject(object8);
+  psi.applyCollisionObject(object9);
+  psi.applyCollisionObject(object0);
   psi.applyCollisionObject(object);
 }
 
@@ -191,7 +268,10 @@ void MTCTaskNode::doTask()
   auto result1 = task_.execute(*task_.solutions().front());
   if (result1.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS)
   {
-    RCLCPP_ERROR_STREAM(LOGGER, "Task execution failed");
+    RCLCPP_INFO_STREAM(LOGGER, "Initial Task execution failed, moving to second task");
+  }
+  else{
+    return;
   }
 
   sleep(10);
@@ -199,10 +279,24 @@ void MTCTaskNode::doTask()
 
   using moveit::planning_interface::MoveGroupInterface;
   auto move_arm = MoveGroupInterface(node_, "panda_arm");
+  auto move_gripper = MoveGroupInterface(node_, "hand");
+
 
   auto const logger = rclcpp::get_logger("hello_moveit");
 
-  move_arm.setPositionTarget(-0.25, 0.0, 0.45);
+  move_arm.setNamedTarget("ready");
+  auto const [success_readybf, plan_readybf] = [&move_arm]{
+  moveit::planning_interface::MoveGroupInterface::Plan msg;
+  auto const ok = static_cast<bool>(move_arm.plan(msg));
+  return std::make_pair(ok, msg);
+  }();
+  if(success_readybf) {
+    move_arm.execute(plan_readybf);
+  } else {
+    RCLCPP_ERROR(logger, "Planing failed Move!");
+  }
+
+  move_arm.setPositionTarget(-0.5, 0.45, 0.25); //0.3
   auto const [success_move, plan_move] = [&move_arm]{
   moveit::planning_interface::MoveGroupInterface::Plan msg;
   auto const ok = static_cast<bool>(move_arm.plan(msg));
@@ -213,38 +307,39 @@ void MTCTaskNode::doTask()
   } else {
     RCLCPP_ERROR(logger, "Planing failed Move!");
   }
-  
 
-  // task_2 = createTask2(attach_object_stage);
 
-  // try
-  // {
-  //   task_2.init();
-  // }
-  // catch (mtc::InitStageException& e)
-  // {
-  //   RCLCPP_ERROR_STREAM(LOGGER, "Failed in init()");
-  //   return;
-  // }
+  move_gripper.detachObject("object");
+  auto const [success_detach, plan_detach] = [&move_gripper]{
+  moveit::planning_interface::MoveGroupInterface::Plan msg;
+  auto const ok = static_cast<bool>(move_gripper.plan(msg));
+  return std::make_pair(ok, msg);
+  }();
+  if(success_detach) {
+    move_gripper.execute(plan_detach);
+  } else {
+    RCLCPP_ERROR(logger, "Planing failed Detach!");
+  }
 
-  // if (!task_2.plan(5 /* max_solutions */))
-  // {
-  //   RCLCPP_ERROR_STREAM(LOGGER, "Task planning failed");
-  //   return;
-  // }
-  // task_2.introspection().publishSolution(*task_2.solutions().front());
 
-  // auto result2 = task_2.execute(*task_2.solutions().front());
-  // if (result2.val != moveit_msgs::msg::MoveItErrorCodes::SUCCESS)
-  // {
-  //   RCLCPP_ERROR_STREAM(LOGGER, "Task execution failed");
-  //   return;
-  // }
+
+  move_arm.setNamedTarget("ready");
+  auto const [success_ready, plan_ready] = [&move_arm]{
+  moveit::planning_interface::MoveGroupInterface::Plan msg;
+  auto const ok = static_cast<bool>(move_arm.plan(msg));
+  return std::make_pair(ok, msg);
+  }();
+  if(success_ready) {
+    move_arm.execute(plan_ready);
+  } else {
+    RCLCPP_ERROR(logger, "Planing failed Move!");
+  }
 
 
   return;
 }
 
+// First Task Creation
 mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
 {
   mtc::Task task;
@@ -273,32 +368,6 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
   cartesian_planner->setMaxAccelerationScalingFactor(1.0);
   cartesian_planner->setStepSize(.01);
 
-  // // clang-format off
-  // auto stage_initial =
-  //     std::make_unique<mtc::stages::MoveTo>("initial hand", interpolation_planner);
-  // // clang-format on
-  // stage_initial->setGroup(arm_group_name);
-  // stage_initial->setGoal("initial");
-  // task.add(std::move(stage_initial)); 
-
-  // {
-  //   auto stage = std::make_unique<mtc::stages::MoveTo>("initial hand", interpolation_planner);
-  //   // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
-  //   stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
-  //   stage->setGoal("initial");
-  //   task.add(std::move(stage));
-  // }
-
-
-  // {
-  //   auto stage = std::make_unique<mtc::stages::MoveTo>("return home", interpolation_planner);
-  //   // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
-  //   stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
-  //   stage->setGoal("ready");
-  //   task.add(std::move(stage));
-  // }
-
-
 
   // clang-format off
   auto stage_open_hand =
@@ -316,23 +385,6 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
   stage_move_to_pick->setTimeout(10.0);
   stage_move_to_pick->properties().configureInitFrom(mtc::Stage::PARENT);
   task.add(std::move(stage_move_to_pick));
-
-  // ##### Me placing open here
-  // task.add(std::move(stage_open_hand));
-
-  // My implementation testing
-  auto stage_motion = std::make_unique<mtc::stages::MoveTo>("motion", interpolation_planner);
-  geometry_msgs::msg::PoseStamped location;
-  location.header.frame_id = hand_frame;
-  location.pose.orientation.w = 1.0;
-  location.pose.position.x = 0.5;
-  location.pose.position.y = 0.5;
-  location.pose.position.z = 0.5;
-  stage_motion->setGroup(arm_group_name);
-  stage_motion->setIKFrame(hand_frame);
-  stage_motion->setGoal(location);
-  // task.add(std::move(stage_motion));
-  //////////
 
 
   // This is an example of SerialContainer usage. It's not strictly needed here.
@@ -379,8 +431,8 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
 
       // This is the transform from the object frame to the end-effector frame
       Eigen::Isometry3d grasp_frame_transform;
-      Eigen::Quaterniond q = Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d::UnitX()) *
-                             Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d::UnitY()) *
+      Eigen::Quaterniond q = Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()) *
+                             Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY()) *
                              Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d::UnitZ());
       grasp_frame_transform.linear() = q.matrix();
       grasp_frame_transform.translation().z() = 0.1;
@@ -479,7 +531,7 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
       // Set upward direction
       geometry_msgs::msg::Vector3Stamped vec;
       vec.header.frame_id = "world";
-      vec.vector.x = 2.0;
+      vec.vector.x = -1.0;
       vec.vector.z = 0.5;
       stage->setDirection(vec);
       // stage->setGoal("ready");
@@ -493,7 +545,7 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
     // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
     stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
     stage->setGoal("ready");
-    // task.add(std::move(stage));
+    task.add(std::move(stage));
   }
 
   {
@@ -505,7 +557,7 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
     // clang-format on
     stage_move_to_place->setTimeout(5.0);
     stage_move_to_place->properties().configureInitFrom(mtc::Stage::PARENT);
-    // task.add(std::move(stage_move_to_place));
+    task.add(std::move(stage_move_to_place));
   }
 
   {
@@ -528,9 +580,9 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
 
       geometry_msgs::msg::PoseStamped target_pose_msg;
       target_pose_msg.header.frame_id = "object";
-      // target_pose_msg.pose.position.
-      target_pose_msg.pose.position.y = 0.5;
-      target_pose_msg.pose.position.z = -0.3;
+      target_pose_msg.pose.position.x = -0.75;
+      target_pose_msg.pose.position.y = 0.75;
+      target_pose_msg.pose.position.z = -0.1;
       target_pose_msg.pose.orientation.w = 1.0;
       stage->setPose(target_pose_msg);
       stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
@@ -588,7 +640,14 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
       stage->setDirection(vec);
       place->insert(std::move(stage));
     }
-    // task.add(std::move(place));
+
+    {
+      auto stage = std::make_unique<mtc::stages::MoveTo>("close hand", interpolation_planner);
+      stage->setGroup(hand_group_name);
+      stage->setGoal("close");
+      place->insert(std::move(stage));
+    }
+    task.add(std::move(place));
   }
 
   {
@@ -596,13 +655,14 @@ mtc::Task MTCTaskNode::createTask1(mtc::Stage* attach_object_stage)
     // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
     stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
     stage->setGoal("ready");
-    // task.add(std::move(stage));
+    task.add(std::move(stage));
   }
+
   return task;
 }
 
 
-
+// Second Task Creation
 mtc::Task MTCTaskNode::createTask2(mtc::Stage* attach_object_stage)
 {
   mtc::Task task;
@@ -610,8 +670,6 @@ mtc::Task MTCTaskNode::createTask2(mtc::Stage* attach_object_stage)
   task.loadRobotModel(node_2);
 
   
-
-
   const auto& arm_group_name = "panda_arm";
   const auto& hand_group_name = "hand";
   const auto& hand_frame = "panda_hand";
@@ -631,15 +689,6 @@ mtc::Task MTCTaskNode::createTask2(mtc::Stage* attach_object_stage)
   cartesian_planner->setStepSize(.01);
 
  
-
-  // {
-  //   auto stage = std::make_unique<mtc::stages::MoveTo>("return home", interpolation_planner);
-  //   // stage->restrictDirection(mtc::stages::MoveTo::FORWARD);
-  //   stage->properties().configureInitFrom(mtc::Stage::PARENT, { "group" });
-  //   stage->setGoal("ready");
-  //   // task.add(std::move(stage));
-  // }
-
   {
     // clang-format off
     auto stage_move_to_place = std::make_unique<mtc::stages::Connect>(
@@ -672,9 +721,9 @@ mtc::Task MTCTaskNode::createTask2(mtc::Stage* attach_object_stage)
 
       geometry_msgs::msg::PoseStamped target_pose_msg;
       target_pose_msg.header.frame_id = "object";
-      // target_pose_msg.pose.position.
-      target_pose_msg.pose.position.y = 0.5;
-      target_pose_msg.pose.position.z = -0.3;
+      target_pose_msg.pose.position.x = -0.5;
+      target_pose_msg.pose.position.y = 0.45;
+      target_pose_msg.pose.position.z = 0.3;
       target_pose_msg.pose.orientation.w = 1.0;
       stage->setPose(target_pose_msg);
       stage->setMonitoredStage(attach_object_stage);  // Hook into attach_object_stage
@@ -764,38 +813,10 @@ int main(int argc, char** argv)
     executor.remove_node(mtc_task_node->getNodeBaseInterface());
   });
 
-  //  auto spin_thread2 = std::make_unique<std::thread>([&executor2, &mtc_task_node]() {
-  //   executor2.add_node(mtc_task_node->getNodeBaseInterface2());
-  //   executor2.spin();
-  //   executor2.remove_node(mtc_task_node->getNodeBaseInterface2());
-  // });
-
   mtc_task_node->setupPlanningScene();
   mtc_task_node->doTask();
 
   spin_thread->join();
-
-  // rclcpp::init(argc, argv);
-  // auto const node = std::make_shared<rclcpp::Node>(
-  //   "hello_moveit",
-  //   rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
-  // );
-  // using moveit::planning_interface::MoveGroupInterface;
-  // auto move_arm = MoveGroupInterface(node, "panda_arm");
-  // auto move_gripper = MoveGroupInterface(node, "hand");
-  // auto const logger = rclcpp::get_logger("hello_moveit");
-
-  // move_arm.setNamedTarget("ready");
-  // auto const [success_move, plan_move] = [&move_arm]{
-  // moveit::planning_interface::MoveGroupInterface::Plan msg;
-  // auto const ok = static_cast<bool>(move_arm.plan(msg));
-  // return std::make_pair(ok, msg);
-  // }();
-  // if(success_move) {
-  //   move_arm.execute(plan_move);
-  // } else {
-  //   RCLCPP_ERROR(logger, "Planing failed Move!");
-  // }
 
   rclcpp::shutdown();
   return 0;

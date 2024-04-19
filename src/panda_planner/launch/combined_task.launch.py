@@ -11,7 +11,7 @@ def generate_launch_description():
         # package="mtc_tutorial",
         # executable="mtc_node",
         package="panda_planner",
-        executable="ros1_action",
+        executable="combined_task",
         output="screen",
         parameters=[
             moveit_config,

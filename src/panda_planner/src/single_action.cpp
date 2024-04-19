@@ -151,18 +151,9 @@ auto const target_pose = []{
   msg.position.z = 0.45;
   return msg;
 }();
-// move_arm.setPoseTarget(target_pose); // should be arm
-// move_arm.setRPYTarget(1.57, 0.78, 0.0);
-// move_arm.setPositionTarget(0.25, 0.0, 0.45);
-
-
-
-
-// move_arm.setJointValueTarget(target_pose);
 
 
 move_gripper.setNamedTarget("open");
-// using moveit::planning_interface::MoveGroup;
 
 
 
@@ -174,18 +165,18 @@ auto const [success_open, plan_open] = [&move_gripper]{
   return std::make_pair(ok, msg);
 }();
 
-// move_arm.setRPYTarget(1.57, 0.78, 0.0);
-// auto const [success_roll, plan_roll] = [&move_arm]{
-//   moveit::planning_interface::MoveGroupInterface::Plan msg;
-//   auto const ok = static_cast<bool>(move_arm.plan(msg));
-//   return std::make_pair(ok, msg);
-// }();
-// if(success_roll) {
-//   move_arm.execute(plan_roll);
-// } else {
-//   RCLCPP_ERROR(logger, "Planing failed!");
-// }
-// move_gripper.attachObject("object");
+move_arm.setRPYTarget(1.57, 0.78, 0.0);
+auto const [success_roll, plan_roll] = [&move_arm]{
+  moveit::planning_interface::MoveGroupInterface::Plan msg;
+  auto const ok = static_cast<bool>(move_arm.plan(msg));
+  return std::make_pair(ok, msg);
+}();
+if(success_roll) {
+  move_arm.execute(plan_roll);
+} else {
+  RCLCPP_ERROR(logger, "Planing failed!");
+}
+move_gripper.attachObject("object");
 
 
 // Execute the plan
@@ -197,7 +188,6 @@ if(success_open) {
 }
 
 
-// move_arm.setPositionTarget(0.25, 0.0, 0.45);
 // Create a plan to that target pose
 auto const [success_move, plan_move] = [&move_arm]{
   moveit::planning_interface::MoveGroupInterface::Plan msg;
@@ -209,29 +199,6 @@ if(success_move) {
 } else {
   RCLCPP_ERROR(logger, "Planing failed Move!");
 }
-
-// auto const hand_pose = []{
-//   geometry_msgs::msg::Pose msg;
-//   msg.orientation.w = 1.0;
-//   msg.orientation.x = 1.5;
-//   // msg.orientation.y = 0.25;
-//   // msg.orientation.z = 1.5;
-//   msg.position.x = -0.1; // 25
-//   msg.position.y = -0.3; // 3
-//   msg.position.z = 0.45;
-//   return msg;
-// }();
-// move_gripper.setPoseTarget(hand_pose);
-// auto const [success_test, plan_test] = [&move_gripper]{
-//   moveit::planning_interface::MoveGroupInterface::Plan msg;
-//   auto const ok = static_cast<bool>(move_gripper.plan(msg));
-//   return std::make_pair(ok, msg);
-// }();
-// if(success_test) {
-//   move_gripper.execute(plan_test);
-// } else {
-//   RCLCPP_ERROR(logger, "Planing failed!");
-// }
 
 
 move_gripper.setNamedTarget("close");
