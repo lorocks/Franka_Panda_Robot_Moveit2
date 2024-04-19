@@ -3,6 +3,8 @@ A Franka Emika Panda Robot is used to perform a Pick and Place task in RViz usin
 
 The ROS distribution being used is ROS Humble.
 
+The planning tasks are written using C++
+
 
 ## GitHub Link
 https://github.com/lorocks/Franka_Panda_Robot_Moveit2
