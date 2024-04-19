@@ -9,7 +9,7 @@ https://github.com/lorocks/Franka_Panda_Robot_Moveit2
 
 
 ## Installing Dependencies
-The following libraires will be required to use the ROS package.
+The following libraries will be required to use the ROS package.
 
 ### Dependencies - Panda_Robot
 1. tf2_ros
@@ -54,7 +54,7 @@ This package consists of urdf and meshes for the Panda robot, and configuration 
 #### Launch Robot
 The robot can be launched using the following command,
 ```bash
-# Naviagte into the Project directory
+# Navigate into the Project directory
 # Source the Project
   source install/setup.sh
 # Launch Panda robot in RViz
@@ -71,7 +71,7 @@ This package consists of planning methods and task to be executed to succesfully
 #### Perform Pick and Place
 ##### Pick and Place
 ```bash
-# Naviagte into the Project directory
+# Navigate into the Project directory
 # Source the Project
   source install/setup.sh
 # Launch the planner after launching the robot in RViz
@@ -82,7 +82,7 @@ Wait patiently for the task to be executed.
 
 ##### Random Actions
 ```bash
-# Naviagte into the Project directory
+# Navigate into the Project directory
 # Source the Project
   source install/setup.sh
 # Launch the planner after launching the robot in RViz
@@ -96,3 +96,11 @@ If this occurs, close the planner and RViz, and proceed to relaunch the panda_ro
 
 
 ## Video Link
+The following video display a pick and place operation.
+
+The robot picks up a ball from one table and places it on the other.
+
+To view the robot operaion, skip to 0:50 in the video.
+
+https://github.com/lorocks/Franka_Panda_Robot_Moveit2/assets/63993526/6d03c0aa-0a7d-4a74-b68a-493322466d8c
+
