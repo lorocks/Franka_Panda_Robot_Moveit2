@@ -59,12 +59,12 @@ void setupPlanningScene()
   object3.header.frame_id = "world";
   object3.primitives.resize(1);
   object3.primitives[0].type = shape_msgs::msg::SolidPrimitive::BOX;
-  object3.primitives[0].dimensions = { 0.4, 0.3, 0.05 };
+  object3.primitives[0].dimensions = { 0.4, 0.3, 0.05 }; // 0.05
 
   geometry_msgs::msg::Pose pose3;
   pose3.position.x = 0.375;
   pose3.position.y = -0.375;
-  pose3.position.z = object2.primitives[0].dimensions[0] + (object3.primitives[0].dimensions[2] / 2);
+  pose3.position.z = object2.primitives[0].dimensions[0] + (object3.primitives[0].dimensions[2] / 2) - object2.primitives[0].dimensions[0] / 2;
   pose3.orientation.w = 1.0;
   object3.pose = pose3;
 
@@ -110,6 +110,8 @@ void setupPlanningScene()
   pose.orientation.w = 1.0;
   object.pose = pose;
 
+
+
   moveit::planning_interface::PlanningSceneInterface psi;
   psi.applyCollisionObject(object1);
   psi.applyCollisionObject(object2);
@@ -140,17 +142,17 @@ auto move_arm = MoveGroupInterface(node, "panda_arm");
 auto move_gripper = MoveGroupInterface(node, "hand");
 
 
-auto const target_pose = []{
-  geometry_msgs::msg::Pose msg;
-  msg.orientation.w = -0.45;
-  msg.orientation.x = -0.74;
-  msg.orientation.y = -0.25;
-  msg.orientation.z = -0.41;
-  msg.position.x = 0.25; // 25
-  msg.position.y = 0.0; // 3
-  msg.position.z = 0.45;
-  return msg;
-}();
+// auto const target_pose = []{
+//   geometry_msgs::msg::Pose msg;
+//   msg.orientation.w = -0.45;
+//   msg.orientation.x = -0.74;
+//   msg.orientation.y = -0.25;
+//   msg.orientation.z = -0.41;
+//   msg.position.x = 0.25; // 25
+//   msg.position.y = 0.0; // 3
+//   msg.position.z = 0.45;
+//   return msg;
+// }();
 
 
 move_gripper.setNamedTarget("open");

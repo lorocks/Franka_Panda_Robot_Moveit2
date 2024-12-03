@@ -127,10 +127,18 @@ $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 $<INSTALL_INTERFACE:include>)
 target_compile_features(combined_task PUBLIC c_std_99 cxx_std_17)
 
+add_executable(random_generate src/random_generate.cpp)
+ament_target_dependencies(random_generate ${THIS_PACKAGE_INCLUDE_DEPENDS})
+target_include_directories(random_generate PUBLIC
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>)
+target_compile_features(random_generate PUBLIC c_std_99 cxx_std_17)
+
 install(TARGETS 
 minimal_panda_planner 
 single_action
 combined_task
+random_generate
 DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY
