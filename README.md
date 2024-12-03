@@ -106,3 +106,9 @@ To view the robot operaion, skip to 0:50 in the video.
 
 https://github.com/lorocks/Franka_Panda_Robot_Moveit2/assets/63993526/6d03c0aa-0a7d-4a74-b68a-493322466d8c
 
+## Spawning Random Objects in RViz
+```bash
+# Launch the robot in RViz first
+# Launch the setup script to ransomly initialize objects and randomly place them given coordinate constraints
+  ros2 launch panda_planner random_generate.launch.py
+```
